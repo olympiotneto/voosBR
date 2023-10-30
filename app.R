@@ -69,22 +69,47 @@ ui <- bs4DashPage(
             width = 4
           )
         ),
-        plotOutput("vg_serie_voos")
-        # fluidRow(
-        #   column(
-        #     width = 4
-        #     # nr de voos total
-        #     # nr de chegadas
-        #     # nr saídas
-        #     # nr empreas aereas que atuaram no período
-        #     # nr de aeroportos com voos no período
-        #   ),
-        #   column(
-        #     width = 8,
-        #     plotOutput("vg_serie_historica_partidas"),
-        #     plotOutput("vg_serie_historica_chegadas")
-        #   )
-        # )
+        fluidRow(
+          #Caixinha para por o gráfico
+          bs4Card(
+            width = 12,
+            height = 642,
+            title = "Número de voos domésticos e internacionais",
+            plotOutput("vg_serie_voos") |>
+              #indicador de carregamento
+              shinycssloaders::withSpinner() ,
+            collapsible = FALSE
+          )
+        ),
+        fluidRow(
+          #cria abas dentro de um box
+          bs4TabCard(
+            width = 6,
+            height = 642,
+            title = "Aeroportos com mais voos",
+            side = "right",
+            collapsible = FALSE,
+            tabPanel(
+              title = "Partidas",
+              tableOutput("vg_tab_aero_partidas")
+            ),
+            tabPanel(
+              title = "Chegadas",
+              tableOutput("vg_tab_aero_chegadas")
+            )
+          ),
+          #cria abas dentro de um box
+          bs4Card(
+            width = 6,
+            height = 662,
+            title = "Empresas com mais voos",
+            side = "right",
+            collapsible = FALSE,
+            tableOutput("vg_tab_emp")
+
+          )
+        )
+
       )
     )
   )
@@ -101,6 +126,7 @@ server <- function(input, output, session) {
 
   tab_voos <- tbl(con, "tab_voos")
   tab_aeroportos <- tbl(con, "tab_aeroportos")
+  tab_empresas <- tbl(con,"tab_empresas")
 
   output$vg_num_voos <- renderbs4ValueBox({
 
@@ -174,46 +200,68 @@ server <- function(input, output, session) {
           theme_classic()
       })
 
-  # output$vg_serie_historica_partidas <- renderPlot({
-  #
-  #   tab_voos |>
-  #     filter(
-  #       # quando usa db para acessar dados, precisa do operador !! antes dos inputs
-  #
-  #       actual_departure_date >= !!input$vg_periodo[1],
-  #       actual_departure_date <= !!input$vg_periodo[2]
-  #     ) |>
-  #     count(planned_departure_date_ym) |>
-  #     collect() |>
-  #     mutate(
-  #       planned_departure_date_ym = as.Date(planned_departure_date_ym)
-  #     ) |>
-  #     ggplot(aes(x = planned_departure_date_ym, y = n)) +
-  #     geom_line(color="royalblue") +
-  #     geom_point(color="royalblue")+
-  #     theme_minimal()
-  # })
-#
-#
-# output$tabela_voos <- renderTable({
-#
-#   tab_voos |>
-#     filter(
-#       actual_departure_date >= !!input$periodo[1],
-#       actual_departure_date <= !!input$periodo[2]
-#     ) |>
-#     head(20) |>
-#     select(
-#       airline,
-#       flight_number,
-#       origin_airport,
-#       actual_departure_date,
-#       actual_arrival_date,
-#     ) |>
-#     collect()
-#
-# })
-#
+      output$vg_tab_aero_partidas <- renderTable({
+        tab_voos |>
+          count(origin_airport, sort = TRUE) |>
+          head(10) |>
+          left_join(
+            tab_aeroportos,
+            by = c("origin_airport" = "airport_cod")
+          ) |>
+          collect() |>
+          mutate(
+            n = formatar_numero(n)
+            ) |>
+          select(
+            Aeroporto = airport_name,
+            Cidade = city,
+            `Número de voos` = n
+          )
+
+
+      })
+
+      output$vg_tab_aero_chegadas <- renderTable({
+        tab_voos |>
+          count(destination_airport, sort = TRUE) |>
+          head(10) |>
+          left_join(
+            tab_aeroportos,
+            by = c("destination_airport" = "airport_cod")
+          ) |>
+          collect() |>
+          mutate(
+            n = formatar_numero(n)
+          ) |>
+          select(
+            Aeroporto = airport_name,
+            Cidade = city,
+            `Número de voos` = n
+          )
+
+
+      })
+
+      output$vg_tab_emp <- renderTable({
+        tab_voos |>
+          count(airline, sort = TRUE) |>
+          head(10) |>
+          left_join(
+            tab_empresas,
+            by = c("airline" = "airline_cod")
+          ) |>
+          collect() |>
+          mutate(
+            n = formatar_numero(n)
+          ) |>
+          select(
+            `Empresa aérea` = airline_name,
+            `Número de voos` = n
+          )
+
+
+      })
+
  }
 
 shinyApp(ui, server)

@@ -15,3 +15,8 @@ classe "inner" logo abaixo de um "small-box" com o sinal de > */
 font-weight: normal;
 
 }
+
+h3{
+font-size: 22px;
+font-weight: bold;
+}
